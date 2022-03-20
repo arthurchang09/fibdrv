@@ -7,6 +7,8 @@
 #include <linux/module.h>
 #include <linux/mutex.h>
 
+#include "bn.h"
+
 MODULE_LICENSE("Dual MIT/GPL");
 MODULE_AUTHOR("National Cheng Kung University, Taiwan");
 MODULE_DESCRIPTION("Fibonacci engine driver");
@@ -17,7 +19,7 @@ MODULE_VERSION("0.1");
 /* MAX_LENGTH is set to 92 because
  * ssize_t can't fit the number > 92
  */
-#define MAX_LENGTH 92
+#define MAX_LENGTH 100
 
 static dev_t fib_dev = 0;
 static struct cdev *fib_cdev;
@@ -38,6 +40,52 @@ static long long fib_sequence(long long k)
 
     return f[k];
 }
+#if 0
+static unsigned long long fib_fast_doubling(long long n)
+{
+    if (unlikely(!n)) {
+        return 0;
+    }
+    unsigned int h = 0;
+    for (long long i = n; i; ++h, i >>= 1)
+        ;
+    unsigned long long a = 0;
+    unsigned long long b = 1;
+    for (unsigned int mask = 1 << (h - 1); mask; mask >>= 1) {
+        unsigned long long t1 = a * (2 * b - a);
+        unsigned long long t2 = a * a + b * b;
+        a = t1;
+        b = t2;
+        if (mask & n) {
+            t1 = a + b;
+            a = b;
+            b = t1;
+        }
+    }
+    return a;
+}
+
+static unsigned long long fib_fast_doubling_clz(long long n)
+{
+    if (unlikely(!n)) {
+        return 0;
+    }
+    unsigned long long a = 0;
+    unsigned long long b = 1;
+    for (unsigned int mask = 1 << (__builtin_clz(n)); mask; mask >>= 1) {
+        unsigned long long t1 = a * (2 * b - a);
+        unsigned long long t2 = a * a + b * b;
+        a = t1;
+        b = t2;
+        if (mask & n) {
+            t1 = a + b;
+            a = b;
+            b = t1;
+        }
+    }
+    return a;
+}
+#endif
 
 static int fib_open(struct inode *inode, struct file *file)
 {
@@ -60,7 +108,12 @@ static ssize_t fib_read(struct file *file,
                         size_t size,
                         loff_t *offset)
 {
-    return (ssize_t) fib_sequence(*offset);
+    bn res;
+    bn_fib(*offset, &res);
+    char *str = bn_to_string(res);
+    size_t len = strlen(str) + 1;
+    copy_to_user(buf, str, len);
+    return fib_sequence(*offset);
 }
 
 /* write operation is skipped */
