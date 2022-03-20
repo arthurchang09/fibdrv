@@ -6,6 +6,7 @@
 #include <linux/kernel.h>
 #include <linux/module.h>
 #include <linux/mutex.h>
+#include <linux/slab.h>
 
 #include "bn.h"
 
@@ -113,6 +114,7 @@ static ssize_t fib_read(struct file *file,
     char *str = bn_to_string(res);
     size_t len = strlen(str) + 1;
     copy_to_user(buf, str, len);
+    kfree(str);
     return fib_sequence(*offset);
 }
 
