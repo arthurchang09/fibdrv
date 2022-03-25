@@ -6,14 +6,13 @@
 #include <unistd.h>
 
 #define FIB_DEV "/dev/fibonacci"
+#define LENGTH 22
+#define BUFFSIZE 8 * sizeof(int) * LENGTH / 3 + 2
 
 int main()
 {
-    long long sz;
-
-    char buf[1];
-    char write_buf[] = "testing writing";
-    int offset = 100; /* TODO: try test something bigger than the limit */
+    char buf[BUFFSIZE];
+    int offset = 1000; /* TODO: try test something bigger than the limit */
 
     int fd = open(FIB_DEV, O_RDWR);
     if (fd < 0) {
@@ -21,28 +20,14 @@ int main()
         exit(1);
     }
 
-    for (int i = 0; i <= offset; i++) {
-        sz = write(fd, write_buf, strlen(write_buf));
-        printf("Writing to " FIB_DEV ", returned the sequence %lld\n", sz);
-    }
 
     for (int i = 0; i <= offset; i++) {
         lseek(fd, i, SEEK_SET);
-        sz = read(fd, buf, 1);
-        printf("Reading from " FIB_DEV
-               " at offset %d, returned the sequence "
-               "%s.\n",
-               i, buf);
+        long long sz = read(fd, buf, BUFFSIZE);
+        printf("%d %lld\n", i, sz);
+
     }
 
-    for (int i = offset; i >= 0; i--) {
-        lseek(fd, i, SEEK_SET);
-        sz = read(fd, buf, 1);
-        printf("Reading from " FIB_DEV
-               " at offset %d, returned the sequence "
-               "%s.\n",
-               i, buf);
-    }
 
     close(fd);
     return 0;

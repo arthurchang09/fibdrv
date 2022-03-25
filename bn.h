@@ -32,7 +32,7 @@ void bn_rshift(bn a, int shift, bn *res);
 /*
  * print the bn in decimal form and return the whole string
  */
-char *bn_to_string(bn a);
+int bn_to_string(bn a, char str[]);
 
 /*
  * Multiply two bn by long multipication and put the sesult in target bn.

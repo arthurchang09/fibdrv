@@ -42,3 +42,15 @@ check: all
 	$(MAKE) unload
 	$(call pass)
 	@scripts/verify.py
+PREFIX = data
+POSTFIX = .txt
+plot: all
+	$(MAKE) unload
+	$(MAKE) load
+	for i in 1 2 3 4 5 6 7 8 9 10; do \
+		sudo taskset 0x01 ./client > data/time/${PREFIX}$$i${POSTFIX}; \
+	done
+	$(MAKE) unload
+	@scripts/time.py
+	gnuplot scripts/time.gp
+	eog time.png

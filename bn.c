@@ -47,8 +47,8 @@ void bn_lshift(bn a, int shift, bn *res)
     int shift_32b_amount = shift >> 5;
 
     memcpy(res, &a, sizeof(bn));
-    unsigned int tmp[shift_32b_amount + 1];
-    unsigned int tmp2[shift_32b_amount + 1];
+    unsigned int tmp[LENGTH];
+    unsigned int tmp2[LENGTH];
     unsigned int i;
     int shift_bit = shift & 0x0000001f;
 
@@ -123,7 +123,6 @@ void bn_rshift(bn a, int shift, bn *res)
         }
     }
 }
-#endif
 
 char *bn_to_string(bn a)
 {
@@ -157,7 +156,59 @@ char *bn_to_string(bn a)
 
     return dec;
 }
+#endif
 
+int bn_to_string(bn a, char str[])
+{
+    char s[8 * sizeof(uint32_t) * LENGTH / 3 + 2];
+    unsigned int n[LENGTH];
+    int i;
+    memset(s, '0', sizeof(s) - 1);
+    memcpy(n, a.num, sizeof(uint32_t) * LENGTH);
+    s[sizeof(s) - 1] = '\0';
+    // printf("%ld\n", sizeof(a));
+    for (i = 0; i < 8 * sizeof(uint32_t) * LENGTH; ++i) {
+        int carry;
+        carry = (n[LENGTH - 1] >= 0x80000000);
+        for (int j = LENGTH - 1; j >= 0; --j) {
+            n[j] = ((n[j] << 1) & 0xffffffff) +
+                   ((j - 1) >= 0 ? (n[j - 1] >= 0x80000000) : 0);
+        }
+
+        for (int j = sizeof(s) - 2; j >= 0; j--) {
+            s[j] += s[j] - '0' + carry;
+            carry = (s[j] > '9');
+            if (carry)
+                s[j] -= 10;
+        }
+    }
+    i = 0;
+    while (i < sizeof(s) - 2 && s[i] == '0')
+        i++;
+    // char *dec = (char *) kmalloc(sizeof(s) - i, GFP_KERNEL);
+    // memcpy(dec, &s[i], sizeof(s) - i);
+    memcpy(str, s, sizeof(s));
+
+    return i;
+}
+
+void bn_mul_3(bn a, bn b, bn *res)
+{
+    uint64_t c2, carry = 0;
+    memset(res, 0, sizeof(bn));
+    for (int i = 0; i < LENGTH; ++i) {
+        uint64_t c1 = carry;
+        carry = 0;
+        for (int j = 0; j <= i; ++j) {
+            c2 = (uint64_t) a.num[j] * b.num[i - j];
+            c1 += c2;
+            carry += c1 < c2;
+        }
+        res->num[i] = c1 & 0xffffffff;
+        carry = (carry << 32) + (c1 >> 32);
+    }
+}
+#if 0
 void bn_mul_2(bn a, bn b, bn *res)
 {
     unsigned int t[LENGTH];
@@ -186,7 +237,6 @@ void bn_mul_2(bn a, bn b, bn *res)
     }
 }
 
-#if 0
 void bn_norm_fib(unsigned int n, bn *res)
 {
     if (unlikely(!n)) {
@@ -229,10 +279,10 @@ void bn_fib(unsigned int n, bn *res)
 
         bn_lshift(b, 1, &t1);
         bn_dec(t1, a, &t1);
-        bn_mul_2(a, t1, &t1);
+        bn_mul_3(a, t1, &t1);
 
-        bn_mul_2(a, a, &t2);
-        bn_mul_2(b, b, &b);
+        bn_mul_3(a, a, &t2);
+        bn_mul_3(b, b, &b);
         bn_add(t2, b, &t2);
 
         memcpy(&a, &t1, sizeof(bn));

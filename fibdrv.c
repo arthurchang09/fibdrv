@@ -20,13 +20,14 @@ MODULE_VERSION("0.1");
 /* MAX_LENGTH is set to 92 because
  * ssize_t can't fit the number > 92
  */
-#define MAX_LENGTH 100
+#define MAX_LENGTH 1000
 
 static dev_t fib_dev = 0;
 static struct cdev *fib_cdev;
 static struct class *fib_class;
 static DEFINE_MUTEX(fib_mutex);
 
+#if 0
 static long long fib_sequence(long long k)
 {
     /* FIXME: C99 variable-length array (VLA) is not allowed in Linux kernel. */
@@ -41,7 +42,7 @@ static long long fib_sequence(long long k)
 
     return f[k];
 }
-#if 0
+
 static unsigned long long fib_fast_doubling(long long n)
 {
     if (unlikely(!n)) {
@@ -110,12 +111,14 @@ static ssize_t fib_read(struct file *file,
                         loff_t *offset)
 {
     bn res;
+    ktime_t kt = ktime_get();
     bn_fib(*offset, &res);
-    char *str = bn_to_string(res);
-    size_t len = strlen(str) + 1;
-    copy_to_user(buf, str, len);
-    kfree(str);
-    return fib_sequence(*offset);
+    // s64 time = ktime_to_ns(ktime_sub(ktime_get(), kt));
+    char str[8 * sizeof(uint32_t) * LENGTH / 3 + 2];
+    int len = bn_to_string(res, str);
+    copy_to_user(buf, str + len, 8 * sizeof(uint32_t) * LENGTH / 3 + 2 - len);
+    s64 time = ktime_to_ns(ktime_sub(ktime_get(), kt));
+    return time;
 }
 
 /* write operation is skipped */
